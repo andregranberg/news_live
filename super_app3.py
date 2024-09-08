@@ -50,13 +50,18 @@ def brave_news_search(query):
         response.raise_for_status()
         return response.json()
     except requests.exceptions.RequestException as e:
+        st.error(f"Error during API request: {e}")
         return None
 
 def save_results(data, query):
     filename = get_filename(query)
-    with open(filename, 'w', encoding='utf-8') as f:
-        json.dump(data, f, ensure_ascii=False, indent=4)
-    return filename
+    try:
+        with open(filename, 'w', encoding='utf-8') as f:
+            json.dump(data, f, ensure_ascii=False, indent=4)
+        return filename
+    except IOError as e:
+        st.error(f"Error saving results: {e}")
+        return None
 
 def get_text_from_url(url):
     try:
@@ -78,6 +83,7 @@ def generate_response(messages, prompt):
         
         return response['message']['content']
     except ollama.ResponseError as e:
+        st.error(f"Error generating response: {e}")
         return None
 
 def analyze_article(keyword, article):
@@ -104,6 +110,8 @@ def process_query(query):
         return None
 
     filename = save_results(results, query)
+    if not filename:
+        return None
     
     articles = results.get('results', [])
     for article in articles:
@@ -112,8 +120,11 @@ def process_query(query):
         time.sleep(1)  # Be nice to the servers
 
     # Update the JSON file with scraped text and analyses
-    with open(filename, 'w', encoding='utf-8') as f:
-        json.dump(results, f, ensure_ascii=False, indent=4)
+    try:
+        with open(filename, 'w', encoding='utf-8') as f:
+            json.dump(results, f, ensure_ascii=False, indent=4)
+    except IOError as e:
+        st.error(f"Error updating results file: {e}")
 
     return articles, filename
 
@@ -140,17 +151,22 @@ def main():
 
             for tab, article in zip(tabs, articles):
                 with tab:
-                    st.header(article['title'])
-                    st.write(f"**Source:** [{article['url']}]({article['url']})")
+                    st.header(article.get('title', 'No title available'))
+                    st.write(f"**Source:** [{article.get('url', '#')}]({article.get('url', '#')})")
                     
-                    if 'thumbnail' in article and 'src' in article['thumbnail']:
-                        st.image(article['thumbnail']['src'], width=200)
+                    if 'thumbnail' in article and article['thumbnail'].get('src'):
+                        try:
+                            st.image(article['thumbnail']['src'], width=200)
+                        except Exception as e:
+                            st.warning(f"Unable to load image: {e}")
+                    else:
+                        st.info("No thumbnail available for this article.")
                     
                     st.subheader("Analysis")
-                    st.write(article['analysis'])
+                    st.write(article.get('analysis', 'No analysis available'))
                     
                     with st.expander("Show full scraped text"):
-                        st.write(article['scraped_text'])
+                        st.write(article.get('scraped_text', 'No scraped text available'))
         else:
             st.error("No articles found or an error occurred during the search.")
 

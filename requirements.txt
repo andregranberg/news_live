@@ -2,3 +2,4 @@ streamlit
 requests
 newspaper3k
 ollama
+lxml[html_clean]
