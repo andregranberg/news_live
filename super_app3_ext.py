@@ -6,6 +6,16 @@ from newspaper import Article
 import time
 import os
 
+# Determine the appropriate temp directory
+if os.environ.get('CLOUD_RUN_SERVICE'):
+    # We're running in Cloud Run
+    TEMP_DIR = '/tmp'
+else:
+    # We're running locally
+    TEMP_DIR = os.path.join(os.getcwd(), 'tmp')
+    # Create the directory if it doesn't exist
+    os.makedirs(TEMP_DIR, exist_ok=True)
+
 # API Keys (replace with your actual API keys)
 BRAVE_API_KEY = "brave_api"
 PERPLEXITY_API_KEY = "perplexity_api"
@@ -20,7 +30,7 @@ EXTRA_SNIPPETS = False
 
 def get_filename(query):
     date = datetime.now().strftime("%Y%m%d")
-    return f"{date}_{query.replace(' ', '_')}.json"
+    return os.path.join(TEMP_DIR, f"{date}_{query.replace(' ', '_')}.json")
 
 def brave_news_search(query):
     url = "https://api.search.brave.com/res/v1/news/search"
@@ -152,6 +162,7 @@ def main():
 
     st.title("AI News Summary")
     st.write(f"Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    st.write(f"Temporary directory: {TEMP_DIR}")
 
     query = st.text_input("Enter your news search query:")
     if st.button("Search and Analyze"):
